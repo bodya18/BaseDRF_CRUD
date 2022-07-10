@@ -7,6 +7,8 @@ from .serializers import UserSerializer, UserSerializer
 from django.contrib.auth.models import User
 from rest_framework.permissions import IsAdminUser
 from django.contrib.auth.hashers import make_password
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 class IsSuperUser(IsAdminUser):
     def has_permission(self, request, view):
@@ -15,7 +17,11 @@ class IsSuperUser(IsAdminUser):
 class UserListApiView(APIView):
     # add permission to check if user is authenticated
     permission_classes = [permissions.IsAuthenticated]
-    # 1. List
+
+    @swagger_auto_schema(manual_parameters=[
+        openapi.Parameter('user_id', openapi.IN_QUERY, description="This is user identificator", type=openapi.TYPE_INTEGER),
+        ]
+    )
     def get(self, request, *args, **kwargs):
         '''
         List all the todo items for given requested user
@@ -25,6 +31,12 @@ class UserListApiView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     # 2. Create
+    @swagger_auto_schema(manual_parameters=[
+        openapi.Parameter('username', openapi.IN_QUERY, description="This is user name", type=openapi.TYPE_STRING),
+        openapi.Parameter('password', openapi.IN_QUERY, description="This is user password", type=openapi.TYPE_STRING),
+        openapi.Parameter('email', openapi.IN_QUERY, description="This is user email", type=openapi.TYPE_STRING),
+        ]
+    )
     def post(self, request, *args, **kwargs):
         '''
         Create the Todo with given todo data
@@ -47,7 +59,7 @@ class UserDetailApiView(APIView):
     password = serializers.CharField(write_only=True)
     def get_object(self, user_id):
         '''
-        Helper method to get the object with given todo_id, and user_id
+        Helper method to get the object with given user_id
         '''
         try:
             return User.objects.get(id=user_id)
@@ -70,9 +82,15 @@ class UserDetailApiView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     # 4. Update
+    @swagger_auto_schema(manual_parameters=[
+        openapi.Parameter('username', openapi.IN_QUERY, description="This is new user name", type=openapi.TYPE_STRING),
+        openapi.Parameter('password', openapi.IN_QUERY, description="This is new user password", type=openapi.TYPE_STRING),
+        openapi.Parameter('email', openapi.IN_QUERY, description="This is new user email", type=openapi.TYPE_STRING),
+        ]
+    )
     def put(self, request, user_id, *args, **kwargs):
         '''
-        Updates the todo item with given todo_id if exists
+        Updates the user
         '''
         user_instance = self.get_object(user_id)
         if not user_instance:
@@ -94,7 +112,7 @@ class UserDetailApiView(APIView):
     # 5. Delete
     def delete(self, request, user_id, *args, **kwargs):
         '''
-        Deletes the todo item with given todo_id if exists
+        Deletes the user
         '''
         user_instance = self.get_object(user_id)
         if not user_instance:

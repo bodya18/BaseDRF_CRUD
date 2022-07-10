@@ -3,9 +3,10 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework import permissions
 from .models import Todo
-from .serializers import TodoSerializer, UserSerializer
-from django.contrib.auth.models import User
+from .serializers import TodoSerializer
 from rest_framework.permissions import IsAdminUser
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 class IsSuperUser(IsAdminUser):
     def has_permission(self, request, view):
@@ -15,6 +16,10 @@ class TodoListApiView(APIView):
     # add permission to check if user is authenticated
     permission_classes = [permissions.IsAuthenticated]
     # 1. List all
+    @swagger_auto_schema(manual_parameters=[
+        openapi.Parameter('user_id', openapi.IN_QUERY, description="This is user identificator", type=openapi.TYPE_INTEGER),
+        ]
+    )
     def get(self, request, *args, **kwargs):
         '''
         List all the todo items for given requested user
@@ -24,14 +29,18 @@ class TodoListApiView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     # 2. Create
+    @swagger_auto_schema(manual_parameters=[
+        openapi.Parameter('task', openapi.IN_QUERY, description="This is daily task", type=openapi.TYPE_STRING),
+        openapi.Parameter('user_id', openapi.IN_QUERY, description="This is user identificator", type=openapi.TYPE_INTEGER),
+        ]
+    )
     def post(self, request, *args, **kwargs):
         '''
         Create the Todo with given todo data
         '''
         data = {
             'task': request.data.get('task'), 
-            'completed': request.data.get('completed'), 
-            'user': request.user.id
+            'user': request.data.get('user_id'),
         }
         serializer = TodoSerializer(data=data)
         if serializer.is_valid():
@@ -54,12 +63,16 @@ class TodoDetailApiView(APIView):
         except Todo.DoesNotExist:
             return None
 
-    # 3. Retrieve
+
+    @swagger_auto_schema(manual_parameters=[
+        openapi.Parameter('user_id', openapi.IN_QUERY, description="This is user identificator", type=openapi.TYPE_INTEGER),
+        ]
+    )
     def get(self, request, todo_id, *args, **kwargs):
         '''
         Retrieves the Todo with given todo_id
         '''
-        todo_instance = self.get_object(todo_id, request.user.id)
+        todo_instance = self.get_object(todo_id, request.data.get('user_id'))
         if not todo_instance:
             return Response(
                 {"res": "Object with todo id does not exists"},
@@ -69,7 +82,12 @@ class TodoDetailApiView(APIView):
         serializer = TodoSerializer(todo_instance)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # 4. Update
+    @swagger_auto_schema(manual_parameters=[
+        openapi.Parameter('task', openapi.IN_QUERY, description="This is daily task", type=openapi.TYPE_STRING),
+        openapi.Parameter('user_id', openapi.IN_QUERY, description="This is user identificator", type=openapi.TYPE_INTEGER),
+        openapi.Parameter('completed', openapi.IN_QUERY, description="This is status task", type=openapi.TYPE_BOOLEAN),
+        ]
+    )
     def put(self, request, todo_id, *args, **kwargs):
         '''
         Updates the todo item with given todo_id if exists
@@ -83,7 +101,7 @@ class TodoDetailApiView(APIView):
         data = {
             'task': request.data.get('task'), 
             'completed': request.data.get('completed'), 
-            'user': request.user.id
+            'user': request.data.get('user_id')
         }
         serializer = TodoSerializer(instance = todo_instance, data=data, partial = True)
         if serializer.is_valid():
@@ -91,7 +109,10 @@ class TodoDetailApiView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    # 5. Delete
+    @swagger_auto_schema(manual_parameters=[
+        openapi.Parameter('user_id', openapi.IN_QUERY, description="This is user identificator", type=openapi.TYPE_INTEGER),
+        ]
+    )
     def delete(self, request, todo_id, *args, **kwargs):
         '''
         Deletes the todo item with given todo_id if exists
@@ -118,8 +139,6 @@ class TodoListAdminApiView(APIView):
         '''
         List all the todo items for given requested user
         '''
-        # serializer1 = UserSerializer(User.objects.all(), many=True)
-        # print(serializer1)
         todos = Todo.objects.all()
         serializer = TodoSerializer(todos, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
